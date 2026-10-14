@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PartyPdv - Plataforma SaaS de Gestão de Festas & Eventos</title>
+    <style>
+        /* ==========================================================================
+           1. ESTILOS BASE E VARIÁVEIS DINÂMICAS (WHITELABEL)
+           ========================================================================== */
+        :root {
+          --primary-color: #e0165c;
+          --primary-light: #fce8ef;
+          --sidebar-bg: #ffffff;
+          --bg-color: #f4f5f7;
+          --text-dark: #333333;
+          --text-muted: #888888;
+          --text-blue: #007bff;
+          --text-danger: #dc3545;
+          --success: #28a745;
+          --warning: #ffc107;
+          --border-color: #e6e6e6;
+          --card-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-dark); height: 100vh; overflow: hidden; }
+
+        /* BARRA FIXA DE ALTERAÇÃO DE AMBIENTE (DEMO) */
+        .environment-switcher {
+          position: fixed; bottom: 15px; right: 15px; z-index: 9999;
+          background: #2d3748; color: white; padding: 6px 12px; border-radius: 30px;
+          display: flex; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 0.75rem; align-items: center;
+        }
+        .env-btn { background: #4a5568; color: white; border: none; padding: 4px 10px; border-radius: 15px; cursor: pointer; transition: 0.2s; }
+        .env-btn.active, .env-btn:hover { background: var(--primary-color); font-weight: bold; }
+
+        /* LAYOUT PRINCIPAL DO PAINEL */
+        .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+
+        /* SIDEBAR (ESTILO SISCHEF) */
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
+        .brand { padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
+        .brand .logo { font-size: 1.4rem; }
+        .brand h2 { font-size: 1.1rem; color: var(--text-dark); flex: 1; margin-left: 10px; }
+        .collapse-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+
+        .user-profile { padding: 15px 20px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .avatar img { width: 50px; height: 50px; border-radius: 50%; margin-bottom: 6px; }
+        .user-name { font-size: 0.85rem; font-weight: 600; color: var(--primary-color); }
+        .user-company { font-size: 0.75rem; color: var(--text-muted); }
+
+        .sidebar-action { padding: 0 20px 15px 20px; }
+        .btn-novo {
+          width: 100%; background-color: var(--primary-color); color: white; border: none;
+          padding: 10px; border-radius: 25px; font-weight: bold; cursor: pointer;
+          box-shadow: 0 4px 6px rgba(224, 22, 92, 0.2); font-size: 0.85rem; transition: opacity 0.2s;
+        }
+        .btn-novo:hover { opacity: 0.9; }
+        .btn-sm { width: auto; padding: 8px 18px; border-radius: 6px; }
+        .btn-lg { width: auto; padding: 14px 35px; font-size: 1rem; }
+
+        .menu { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .menu-btn {
+          background: none; border: none; padding: 12px 20px; text-align: left; font-size: 0.9rem;
+          color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 10px;
+          border-left: 4px solid transparent;
+        }
+        .menu-btn:hover { background-color: #f9f9f9; }
+        .menu-btn.active { background-color: var(--primary-light); color: var(--primary-color); border-left-color: var(--primary-color); font-weight: 600; }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* TOPBAR & SUBHEADER */
+        .topbar { background: #ffffff; padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
+        .stats-row { display: flex; gap: 20px; }
+        .stat-item { display: flex; flex-direction: column; }
+        .stat-border { border-left: 1px solid var(--border-color); padding-left: 20px; }
+        .stat-label { font-size: 0.7rem; color: #a0a0a0; text-transform: uppercase; margin-bottom: 2px; }
+        .stat-value { font-size: 1.1rem; font-weight: 600; }
+
+        .sub-header { background: #ffffff; padding: 8px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; }
+        .breadcrumbs { color: var(--text-muted); }
+        .search-filter { display: flex; gap: 10px; }
+        .search-box { display: flex; align-items: center; border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; }
+        .search-box input { border: none; outline: none; margin-left: 5px; font-size: 0.8rem; }
+        .btn-outline { border: 1px solid var(--border-color); background: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; color: var(--text-muted); font-weight: bold; }
+
+        .view-section { display: none; flex: 1; overflow: auto; padding: 20px; }
+        .view-section.active { display: block; }
+
+        /* QUADRO KANBAN DE EVENTOS */
+        .kanban-board { display: flex; gap: 15px; height: 100%; align-items: flex-start; }
+        .kanban-column { flex: 1; min-width: 240px; max-width: 300px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; display: flex; flex-direction: column; height: calc(100vh - 150px); }
+        .column-header { padding: 12px 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .badge-count { background: #f0f0f0; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-muted); }
+        .column-content { padding: 10px; overflow-y: auto; flex: 1; background-color: var(--bg-color); }
+
+        .kanban-card { background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin-bottom: 10px; box-shadow: var(--card-shadow); border-left: 4px solid transparent; }
+        .kanban-card.active-card { border-left-color: var(--primary-color); }
+        .card-top { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .badge-number { border: 1px solid var(--border-color); border-radius: 10px; padding: 1px 6px; font-size: 0.65rem; color: var(--text-muted); }
+        .card-date, .card-info, .card-address { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+        .card-bottom { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .price { font-weight: bold; font-size: 0.85rem; }
+        .tag-status { background: #e8f5e9; color: var(--success); font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+
+        /* PDV & CATALOGO DE PEÇAS */
+        .pdv-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+        .catalog-panel, .cart-panel, .content-card { background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; margin-top: 15px; }
+        .product-card { border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; text-align: center; }
+        .cart-panel { display: flex; flex-direction: column; }
+        .cart-list { flex: 1; margin: 15px 0; overflow-y: auto; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 10px 0; min-height: 200px; }
+        .cart-total { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; }
+
+        /* TABELAS COMPACTAS */
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; margin-top: 15px; }
+        .data-table th, .data-table td { padding: 10px; border-bottom: 1px solid var(--border-color); }
+        .data-table th { background: #f8f9fa; color: var(--text-muted); font-weight: 600; }
+
+        /* GERADOR DE CONTRATOS COM IA */
+        .contract-editor-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; height: calc(100vh - 160px); }
+        .variables-panel { background: white; border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; overflow-y: auto; }
+        .variable-item { background: #f8f9fa; border: 1px solid var(--border-color); padding: 6px 10px; margin-bottom: 6px; border-radius: 4px; font-family: monospace; font-size: 0.75rem; cursor: pointer; }
+        .document-preview { background: white; border: 1px solid var(--border-color); border-radius: 6px; padding: 40px; overflow-y: auto; box-shadow: var(--card-shadow); font-family: 'Times New Roman', serif; line-height: 1.6; }
+
+        /* CHAT ASSISTENTE PARTY IA */
+        .ai-chat-box { display: flex; flex-direction: column; height: calc(100vh - 160px); background: white; border: 1px solid var(--border-color); border-radius: 8px; }
+        .chat-header { padding: 15px; border-bottom: 1px solid var(--border-color); background: #f8f9fa; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { padding: 10px 15px; border-radius: 8px; max-width: 75%; font-size: 0.85rem; }
+        .message.user { background: var(--primary-light); color: var(--primary-color); align-self: flex-end; }
+        .message.ai { background: #f0f4f8; color: var(--text-dark); align-self: flex-start; }
+        .chat-input-area { display: flex; padding: 15px; border-top: 1px solid var(--border-color); gap: 10px; }
+        .chat-input-area input { flex: 1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; outline: none; }
+
+        /* WHITELABEL & TEMA */
+        .config-panel { background: white; padding: 25px; border-radius: 8px; border: 1px solid var(--border-color); max-width: 500px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; }
+        .color-picker-wrapper { display: flex; align-items: center; gap: 12px; }
+        input[type="color"] { width: 40px; height: 40px; border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; }
+        .hex-value { background: #f4f5f7; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.8rem; }
+
+        /* UTILITÁRIOS */
+        .text-primary { color: var(--primary-color) !important; }
+        .text-danger { color: var(--text-danger) !important; }
+        .text-success { color: var(--success) !important; }
+        .text-blue { color: var(--text-blue) !important; }
+        .text-muted { color: var(--text-muted); }
+        .text-sm { font-size: 0.75rem; }
+        .font-bold { font-weight: bold; }
+        .mb-10 { margin-bottom: 10px; }
+        .mb-20 { margin-bottom: 20px; }
+        .mt-10 { margin-top: 10px; }
+        .mt-20 { margin-top: 20px; }
+        .code-block { background: #f8f9fa; padding: 10px; font-family: monospace; }
+        .badge { padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
+        .badge-danger { background: #ffebee; color: var(--text-danger); }
+        .badge-success { background: #e8f5e9; color: var(--success); }
+
+        /* SITE PÚBLICO, ADMIN & PORTAL */
+        .public-site { background: white; width: 100%; height: 100vh; overflow-y: auto; }
+        .public-nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 50px; border-bottom: 1px solid var(--border-color); }
+        .logo-text { font-size: 1.4rem; font-weight: bold; color: var(--primary-color); }
+        .public-links { display: flex; gap: 20px; }
+        .public-links a { text-decoration: none; color: var(--text-dark); font-weight: 500; font-size: 0.9rem; }
+        .hero-section { text-align: center; padding: 50px 20px; background: linear-gradient(180deg, #fff 0%, #f4f5f7 100%); }
+        .hero-section h1 { font-size: 2.2rem; margin-bottom: 15px; }
+        .hero-sub { color: var(--text-muted); max-width: 550px; margin: 0 auto 25px auto; font-size: 0.9rem; }
+        .pricing-section { padding: 30px 0; text-align: center; }
+        .pricing-grid { display: flex; justify-content: center; gap: 20px; padding: 30px; flex-wrap: wrap; }
+        .price-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 25px; width: 280px; text-align: center; box-shadow: var(--card-shadow); position: relative; }
+        .price-card.featured { border: 2px solid var(--primary-color); transform: scale(1.03); }
+        .price-val { font-size: 1.8rem; font-weight: bold; margin: 10px 0; }
+        .price-val span { font-size: 0.8rem; font-weight: normal; }
+        .price-card ul { text-align: left; font-size: 0.8rem; line-height: 2; margin-bottom: 20px; list-style: none; }
+        .popular-tag { background: var(--primary-color); color: white; padding: 2px 10px; border-radius: 10px; font-size: 0.65rem; font-weight: bold; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); }
+
+        .admin-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .admin-card { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .admin-val { font-size: 1.5rem; font-weight: bold; margin-top: 5px; }
+        .key-gen-row { display: flex; gap: 10px; }
+        .form-select, .form-input { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; outline: none; }
+        .form-textarea { width: 100%; height: 80px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; outline: none; font-size: 0.8rem; }
+        .key-output { margin-top: 15px; font-family: monospace; font-size: 1rem; color: var(--primary-color); font-weight: bold; }
+
+        .portal-card { max-width: 700px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .portal-header { display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 15px; }
+        .doc-row { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px 15px; border-radius: 6px; margin-top: 10px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA FIXA DE ALTERAÇÃO DE AMBIENTE (DEMO DA PLATAFORMA) -->
+    <div class="environment-switcher">
+      <span>Ambiente:</span>
+      <button class="env-btn active" onclick="switchEnv('app')">Painel Assinante</button>
+      <button class="env-btn" onclick="switchEnv('public')">Site Público</button>
+      <button class="env-btn" onclick="switchEnv('admin')">Super Admin</button>
+      <button class="env-btn" onclick="switchEnv('portal')">Portal do Cliente</button>
+    </div>
+
+    <!-- 1. AMBIENTE EMPRESARIAL DO ASSINANTE -->
+    <div id="env-app" class="app-container">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo">🎉</div>
+          <h2>PartyPdv</h2>
+          <button class="collapse-btn">❮</button>
+        </div>
+
+        <div class="user-profile">
+          <div class="avatar">
+            <img src="https://ui-avatars.com/api/?name=Admin+Festa&background=e0165c&color=fff" alt="Avatar">
+          </div>
+          <div class="user-info">
+            <span class="user-name">ADMIN PARTY</span>
+            <span class="user-company">DECORAÇÕES TREVO</span>
+          </div>
+        </div>
+
+        <div class="sidebar-action">
+          <button class="btn-novo" onclick="alert('Abrir formulário de cadastro de novo evento...')">+ NOVO EVENTO</button>
+        </div>
+
+        <nav class="menu">
+          <button class="menu-btn active" data-target="dashboard"><span class="icon">📊</span> Painel Kanban</button>
+          <button class="menu-btn" data-target="pdv"><span class="icon">🛒</span> PDV & Caixa</button>
+          <button class="menu-btn" data-target="estoque"><span class="icon">📦</span> Peças & Estoque</button>
+          <button class="menu-btn" data-target="dividas"><span class="icon">💰</span> Dívidas & Cobranças</button>
+          <button class="menu-btn" data-target="contratos"><span class="icon">📄</span> Contratos com IA</button>
+          <button class="menu-btn" data-target="party-ia"><span class="icon">🤖</span> Party IA Assistente</button>
+          <button class="menu-btn" data-target="configuracoes"><span class="icon">⚙️</span> Personalização</button>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="stats-row">
+            <div class="stat-item"><span class="stat-label">Pendentes</span><span class="stat-value" id="topbar-pendentes">2</span></div>
+            <div class="stat-item"><span class="stat-label">Agendados</span><span class="stat-value text-primary" id="topbar-agendados">11</span></div>
+            <div class="stat-item"><span class="stat-label">Cancelados</span><span class="stat-value text-danger">0</span></div>
+            <div class="stat-item stat-border"><span class="stat-label">Total Mês</span><span class="stat-value" id="topbar-faturamento">R$ 4.692,90</span></div>
+            <div class="stat-item"><span class="stat-label">Dívidas Vencidas</span><span class="stat-value text-danger" id="topbar-dividas">R$ 350,00</span></div>
+          </div>
+          <div class="topbar-right">
+            <div class="caixa-status" style="border: 1px solid var(--success); padding: 2px 10px; border-radius: 4px; text-align: center;">
+              <span style="font-size: 0.65rem; color: var(--text-muted); display: block;">Caixa</span>
+              <span style="font-size: 0.8rem; color: var(--success); font-weight: bold;">ABERTO</span>
+            </div>
+            <button class="btn-outline">⚙️</button>
+          </div>
+        </header>
+
+        <div class="sub-header">
+          <div class="breadcrumbs">🔗 PARTYPDV 🡢 EVENTOS 🡢 <strong id="current-view-title">KANBAN DE EVENTOS</strong></div>
+          <div class="search-filter">
+            <div class="search-box">
+              <span>🔍</span>
+              <input type="text" placeholder="Buscar cliente, contrato...">
+            </div>
+            <button class="btn-outline">FILTROS</button>
+          </div>
+        </div>
+
+        <!-- VISTA: KANBAN -->
+        <section id="dashboard" class="view-section active">
+          <div class="kanban-board">
+            <div class="kanban-column">
+              <div class="column-header"><h3 class="text-primary">Orçamentos</h3><span class="badge-count">1</span></div>
+              <div class="column-content" id="col-budget">
+                <div class="kanban-card">
+                  <div class="card-top"><strong>MARIANA SILVA</strong><span class="badge-number">#1808</span></div>
+                  <div class="card-date">18 Out 14:00 (Festa Infantil)</div>
+                  <div class="card-info">🛍️ Para retirar em loja</div>
+                  <div class="card-bottom"><span class="price text-muted">R$ 450,00</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="kanban-column">
+              <div class="column-header"><h3 class="text-primary">Confirmados</h3><span class="badge-count">2</span></div>
+              <div class="column-content" id="col-confirmed">
+                <div class="kanban-card active-card">
+                  <div class="card-top"><strong>FABIANA DE PAULA</strong><span class="badge-number">#1797</span></div>
+                  <div class="card-date">15 Out 14:00 (Casamento Clássico)</div>
+                  <div class="card-info">🚚 Entrega + Montagem</div>
+                  <div class="card-address">📍 Salão Nobre - Centro</div>
+                  <div class="card-bottom">
+                    <span class="price">R$ 2.890,00</span>
+                    <span class="tag-status">Sinal Pago</span>
+                  </div>
+                </div>
+                <div class="kanban-card">
+                  <div class="card-top"><strong>SILMARA MASCARI</strong><span class="badge-number">#1800</span></div>
+                  <div class="card-date">16 Out 09:00 (Aniversário 15 anos)</div>
+                  <div class="card-info">🎪 Montagem Completa</div>
+                  <div class="card-address">📍 Av. Principal, 999 - Salão B</div>
+                  <div class="card-bottom"><span class="price">R$ 2.145,00</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="kanban-column">
+              <div class="column-header"><h3 class="text-primary">Em Execução</h3><span class="badge-count">0</span></div>
+              <div class="column-content" id="col-execution"></div>
+            </div>
+
+            <div class="kanban-column">
+              <div class="column-header"><h3 class="text-primary">Finalizados</h3><span class="badge-count">1</span></div>
+              <div class="column-content" id="col-finished">
+                <div class="kanban-card" style="opacity: 0.7;">
+                  <div class="card-top"><strong>EVENTO CORPORATIVO TECH</strong><span class="badge-number">#1750</span></div>
+                  <div class="card-date">10 Out 15:17 (Concluído)</div>
+                  <div class="card-info">✅ Material Devolvido</div>
+                  <div class="card-bottom"><span class="price">R$ 1.350,00</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VISTA: PDV & CAIXA -->
+        <section id="pdv" class="view-section">
+          <div class="pdv-grid">
+            <div class="catalog-panel">
+              <h2>Catálogo de Peças & Produtos</h2>
+              <div class="products-grid" id="pdv-products-grid"></div>
+            </div>
+            <div class="cart-panel">
+              <h3>Carrinho da Venda</h3>
+              <div id="cart-items" class="cart-list">
+                <p class="text-muted text-sm">Nenhum item selecionado.</p>
+              </div>
+              <div class="cart-total">Total: <span id="cart-total">R$ 0,00</span></div>
+              <button class="btn-novo" onclick="checkoutPDV()">FINALIZAR VENDA / EMITIR RECIBO</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- VISTA: ESTOQUE E PEÇAS -->
+        <section id="estoque" class="view-section">
+          <div class="content-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h2>Gestão do Acervo de Decoração</h2>
+              <button class="btn-novo btn-sm" onclick="addNewProduct()">+ Cadastrar Peça</button>
+            </div>
+            <table class="data-table" id="stock-table">
+              <thead>
+                <tr>
+                  <th>Peça / Item</th>
+                  <th>Categoria</th>
+                  <th>Físico</th>
+                  <th>Disponível</th>
+                  <th>Reservado</th>
+                  <th>Manutenção</th>
+                  <th>Preço Locação</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VISTA: DÍVIDAS E COBRANÇAS -->
+        <section id="dividas" class="view-section">
+          <div class="content-card">
+            <h2>Controle de Dívidas e Inadimplência</h2>
+            <p class="text-muted mb-20 text-sm">Acompanhe saldos pendentes, emita lembretes e registe pagamentos parciais.</p>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Origem</th>
+                  <th>Vencimento</th>
+                  <th>Valor Total</th>
+                  <th>Saldo Restante</th>
+                  <th>Status</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Mariana Silva</td>
+                  <td>Contrato #1808</td>
+                  <td>15/10/2026</td>
+                  <td>R$ 450,00</td>
+                  <td class="text-danger font-bold">R$ 350,00</td>
+                  <td><span class="badge badge-danger">VENCIDA</span></td>
+                  <td><button class="btn-outline" onclick="registerDebtPayment('Mariana Silva', 350)">Registar Pagamento</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VISTA: GERADOR DE CONTRATOS IA -->
+        <section id="contratos" class="view-section">
+          <div class="contract-editor-grid">
+            <div class="variables-panel">
+              <h4>Biblioteca de Variáveis</h4>
+              <p class="text-muted text-sm mb-10">Clique para inserir no documento:</p>
+              <div class="variable-item" onclick="insertVar('{{empresa.razao_social}}')">{{empresa.razao_social}}</div>
+              <div class="variable-item" onclick="insertVar('{{cliente.nome_completo}}')">{{cliente.nome_completo}}</div>
+              <div class="variable-item" onclick="insertVar('{{cliente.cpf}}')">{{cliente.cpf}}</div>
+              <div class="variable-item" onclick="insertVar('{{evento.data}}')">{{evento.data}}</div>
+              <div class="variable-item" onclick="insertVar('{{evento.valor_total}}')">{{evento.valor_total}}</div>
+              <div class="variable-item" onclick="insertVar('{{locacao.lista_itens}}')">{{locacao.lista_itens}}</div>
+              
+              <h4 class="mt-20">Prompt de Ajuste com IA</h4>
+              <textarea id="ai-contract-prompt" class="form-textarea" placeholder="Ex: Adicione cláusula de multa por danos em louças..."></textarea>
+              <button class="btn-novo btn-sm mt-10" onclick="generateContractWithAI()">Ajustar com Party IA</button>
+            </div>
+
+            <div class="document-preview" id="contract-preview-body" contenteditable="true">
+              <h2 style="text-align: center; margin-bottom: 20px;">CONTRATO DE LOCAÇÃO DE PEÇAS DECORATIVAS</h2>
+              <p>Pelo presente instrumento, de um lado <strong>{{empresa.razao_social}}</strong>, e de outro <strong>{{cliente.nome_completo}}</strong>, inscrito no CPF sob nº <strong>{{cliente.cpf}}</strong>, contratam os itens descritos para o evento em <strong>{{evento.data}}</strong>.</p>
+              <br>
+              <h3>CLÁUSULA PRIMEIRA - DOS ITENS LOCADOS</h3>
+              <p class="code-block">{{locacao.lista_itens}}</p>
+              <br>
+              <h3>CLÁUSULA SEGUNDA - VALOR E CONDIÇÕES</h3>
+              <p>O valor total ajustado é de <strong>{{evento.valor_total}}</strong>.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- VISTA: ASSISTENTE PARTY IA -->
+        <section id="party-ia" class="view-section">
+          <div class="ai-chat-box">
+            <div class="chat-header">
+              <h3>🤖 Party IA - Assistente de Operações</h3>
+              <p class="text-muted text-sm">Consulte relatórios, orçamentos e agenda em tempo real.</p>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+              <div class="message ai">Olá! Sou a Party IA. Como posso ajudar com os orçamentos, estoque ou faturamento hoje?</div>
+            </div>
+            <div class="chat-input-area">
+              <input type="text" id="chat-input" placeholder="Ex: Quanto faturamos este mês? Quais itens estão reservados?" onkeypress="handleChatKey(event)">
+              <button class="btn-novo btn-sm" onclick="sendChatMessage()">Enviar</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- VISTA: CONFIGURAÇÕES WHITELABEL -->
+        <section id="configuracoes" class="view-section">
+          <div class="config-panel">
+            <h2>Personalização da Empresa (Whitelabel)</h2>
+            <p class="text-muted mb-20 text-sm">Ajuste as cores principais e do menu em tempo real.</p>
+            
+            <div class="form-group">
+              <label>Cor Principal (Destaques e Botões)</label>
+              <div class="color-picker-wrapper">
+                <input type="color" id="primaryColorPicker" value="#e0165c" onchange="updateThemeColors()">
+                <span class="hex-value" id="primaryHex">#e0165c</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Cor do Menu Lateral</label>
+              <div class="color-picker-wrapper">
+                <input type="color" id="sidebarColorPicker" value="#ffffff" onchange="updateThemeColors()">
+                <span class="hex-value" id="sidebarHex">#ffffff</span>
+              </div>
+            </div>
+
+            <button class="btn-novo btn-sm" onclick="alert('Preferências visuais salvas no banco de dados!')">Salvar Preferências</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- 2. SITE COMERCIAL PÚBLICO -->
+    <div id="env-public" class="public-site" style="display: none;">
+      <nav class="public-nav">
+        <div class="logo-text">🎉 PartyPdv</div>
+        <div class="public-links">
+          <a href="#planos">Planos</a>
+          <a href="#func">Funcionalidades</a>
+          <a href="#faq">Perguntas Frequentes</a>
+        </div>
+        <button class="btn-novo btn-sm" onclick="switchEnv('app')">Aceder ao Painel</button>
+      </nav>
+
+      <section class="hero-section">
+        <h1>Organize sua empresa de festas em um só lugar.</h1>
+        <p class="hero-sub">Gerencie vendas, locações, acervo de peças, contratos automáticos com inteligência artificial e financeiro com um sistema personalizável.</p>
+        <button class="btn-novo btn-lg" onclick="switchEnv('app')">Experimentar Gratuitamente por 7 Dias</button>
+      </section>
+
+      <section id="planos" class="pricing-section">
+        <h2>Planos Comerciais</h2>
+        <div class="pricing-grid">
+          <div class="price-card">
+            <h3>BASIC</h3>
+            <div class="price-val">R$ 49,90<span>/mês</span></div>
+            <p class="text-muted text-sm">Para pequenos decoradores individuais.</p>
+            <ul>
+              <li>✔ PDV e Cadastro de Clientes</li>
+              <li>✔ Controle Básico de Estoque</li>
+              <li>✔ 1 Utilizador</li>
+            </ul>
+            <button class="btn-novo" onclick="switchEnv('app')">Começar Agora</button>
+          </div>
+
+          <div class="price-card featured">
+            <span class="popular-tag">MAIS POPULAR</span>
+            <h3>PRO</h3>
+            <div class="price-val">R$ 99,90<span>/mês</span></div>
+            <p class="text-muted text-sm">Para empresas de locação em expansão.</p>
+            <ul>
+              <li>✔ Tudo do Basic</li>
+              <li>✔ Quadro Kanban de Eventos</li>
+              <li>✔ Gerador de Contratos com IA</li>
+              <li>✔ Até 5 Utilizadores</li>
+            </ul>
+            <button class="btn-novo" onclick="switchEnv('app')">Testar 7 Dias Grátis</button>
+          </div>
+
+          <div class="price-card">
+            <h3>MEGA</h3>
+            <div class="price-val">R$ 179,90<span>/mês</span></div>
+            <p class="text-muted text-sm">Para grandes acervos e buffets.</p>
+            <ul>
+              <li>✔ Tudo do PRO</li>
+              <li>✔ Utilizadores Ilimitados</li>
+              <li>✔ Party IA sem Limites</li>
+            </ul>
+            <button class="btn-novo" onclick="switchEnv('app')">Contactar Vendas</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 3. PAINEL SUPER ADMIN -->
+    <div id="env-admin" class="public-site" style="display: none; padding: 30px;">
+      <h1>🛡️ Painel Super Admin (Proprietário)</h1>
+      <p class="text-muted mb-20">Gestão global de empresas, MRR e emissão de Chaves de Ativação.</p>
+
+      <div class="admin-stats-grid">
+        <div class="admin-card"><span class="text-muted text-sm">Empresas Ativas</span><div class="admin-val">142</div></div>
+        <div class="admin-card"><span class="text-muted text-sm">Receita Recorrente (MRR)</span><div class="admin-val text-success">R$ 14.890,00</div></div>
+        <div class="admin-card"><span class="text-muted text-sm">Empresas em Teste</span><div class="admin-val text-blue">18</div></div>
+        <div class="admin-card"><span class="text-muted text-sm">Assinaturas Expiradas</span><div class="admin-val text-danger">3</div></div>
+      </div>
+
+      <div class="content-card">
+        <h3>🔑 Gerador de Chaves de Ativação</h3>
+        <div class="key-gen-row mt-10">
+          <select id="key-plan-select" class="form-select">
+            <option value="BASIC">Plano BASIC</option>
+            <option value="PRO" selected>Plano PRO</option>
+            <option value="MEGA">Plano MEGA</option>
+          </select>
+          <input type="number" id="key-days-input" value="30" class="form-input" placeholder="Validade em dias">
+          <button class="btn-novo btn-sm" onclick="generateActivationKey()">Gerar Chave Única</button>
+        </div>
+        <div id="generated-key-output" class="key-output"></div>
+      </div>
+    </div>
+
+    <!-- 4. PORTAL DO CLIENTE FINAL -->
+    <div id="env-portal" class="public-site" style="display: none; padding: 40px; background: #f4f5f7;">
+      <div class="portal-card">
+        <div class="portal-header">
+          <div>
+            2. <h2>Portal do Cliente - Decorações Trevo</h2>
+            <p class="text-muted text-sm">Bem-vinda, Fabiana de Paula</p>
+          </div>
+          <span class="badge badge-success">Evento Confirmado</span>
+        </div>
+
+        <h3>Resumo da Sua Locação (#1797)</h3>
+        <p class="text-sm mt-10"><strong>Data:</strong> 15/10/2026 às 14:00</p>
+        <p class="text-sm"><strong>Local:</strong> Salão Nobre - Centro</p>
+
+        <h4 class="mt-20">Documentos & Contratos</h4>
+        <div class="doc-row">
+          <span>📄 Contrato_Locacao_Fabiana_Signed.pdf</span>
+          <button class="btn-novo btn-sm" onclick="alert('Download do PDF iniciado!')">Descarregar PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPT REATIVO COMPLETO -->
+    <script>
+      const state = {
+        products: [
+          { id: 1, name: "Mesa Rústica Madeira 2m", category: "Mobiliário", phys: 10, avail: 8, res: 2, maint: 0, price: 120.00 },
+          { id: 2, name: "Painel Arco Romano Dourado", category: "Estruturas", phys: 5, avail: 5, res: 0, maint: 0, price: 85.00 },
+          { id: 3, name: "Kit Louças Rosa Bebé (10 peças)", category: "Acessórios", phys: 15, avail: 12, res: 3, maint: 0, price: 45.00 }
+        ],
+        cart: [],
+        faturamentoMes: 4692.90
+      };
+
+      function switchEnv(env) {
+        document.querySelectorAll('.environment-switcher .env-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.app-container, .public-site').forEach(el => el.style.display = 'none');
+
+        if (env === 'app') document.getElementById('env-app').style.display = 'flex';
+        else if (env === 'public') document.getElementById('env-public').style.display = 'block';
+        else if (env === 'admin') document.getElementById('env-admin').style.display = 'block';
+        else if (env === 'portal') document.getElementById('env-portal').style.display = 'block';
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const menuBtns = document.querySelectorAll('.menu-btn');
+        const sections = document.querySelectorAll('.view-section');
+
+        menuBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            menuBtns.forEach(b => b.classList.remove('active'));
+            sections.forEach(s => s.classList.remove('active'));
+
+            btn.classList.add('active');
+            const target = btn.getAttribute('data-target');
+            document.getElementById(target).classList.add('active');
+            document.getElementById('current-view-title').textContent = btn.textContent.trim().toUpperCase();
+          });
+        });
+
+        renderProducts();
+      });
+
+      function renderProducts() {
+        const pdvGrid = document.getElementById('pdv-products-grid');
+        const stockBody = document.querySelector('#stock-table tbody');
+
+        if(!pdvGrid || !stockBody) return;
+
+        pdvGrid.innerHTML = '';
+        stockBody.innerHTML = '';
+
+        state.products.forEach(p => {
+          pdvGrid.innerHTML += `
+            <div class="product-card">
+              <strong>${p.name}</strong>
+              <div class="text-muted text-sm my-5">Disponível: ${p.avail}</div>
+              <div class="price text-primary">R$ ${p.price.toFixed(2)}</div>
+              <button class="btn-novo btn-sm mt-10" onclick="addToCart(${p.id})">+ Adicionar</button>
+            </div>
+          `;
+
+          stockBody.innerHTML += `
+            <tr>
+              <td><strong>${p.name}</strong></td>
+              <td>${p.category}</td>
+              <td>${p.phys}</td>
+              <td class="text-success font-bold">${p.avail}</td>
+              <td class="text-blue font-bold">${p.res}</td>
+              <td class="text-danger">${p.maint}</td>
+              <td>R$ ${p.price.toFixed(2)}</td>
+            </tr>
+          `;
+        });
+      }
+
+      function addToCart(id) {
+        const prod = state.products.find(p => p.id === id);
+        state.cart.push(prod);
+        renderCart();
+      }
+
+      function renderCart() {
+        const cartDiv = document.getElementById('cart-items');
+        const totalSpan = document.getElementById('cart-total');
+        
+        if (state.cart.length === 0) {
+          cartDiv.innerHTML = '<p class="text-muted text-sm">Nenhum item selecionado.</p>';
+          totalSpan.textContent = 'R$ 0,00';
+          return;
+        }
+
+        let total = 0;
+        cartDiv.innerHTML = '';
+        state.cart.forEach(item => {
+          total += item.price;
+          cartDiv.innerHTML += `
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
+              <span>${item.name}</span>
+              <strong>R$ ${item.price.toFixed(2)}</strong>
+            </div>
+          `;
+        });
+        totalSpan.textContent = `R$ ${total.toFixed(2)}`;
+      }
+
+      function checkoutPDV() {
+        if(state.cart.length === 0) return alert('O carrinho está vazio!');
+        alert('Venda realizada com sucesso! Recibo e reservas atualizados.');
+        state.cart = [];
+        renderCart();
+      }
+
+      function addNewProduct() {
+        const name = prompt("Nome da nova peça decorativa:");
+        if(name) {
+          state.products.push({
+            id: Date.now(),
+            name: name,
+            category: "Geral",
+            phys: 5,
+            avail: 5,
+            res: 0,
+            maint: 0,
+            price: 50.00
+          });
+          renderProducts();
+        }
+      }
+
+      function insertVar(variable) {
+        const preview = document.getElementById('contract-preview-body');
+        preview.focus();
+        document.execCommand('insertText', false, variable);
+      }
+
+      function generateContractWithAI() {
+        const promptText = document.getElementById('ai-contract-prompt').value;
+        if (!promptText) return alert('Digite uma instrução para a IA.');
+        
+        alert('Processando prompt com a Party IA...');
+        const preview = document.getElementById('contract-preview-body');
+        preview.innerHTML += `<br><h3>CLÁUSULA ADICIONAL (GERADA VIA IA)</h3><p>${promptText}</p>`;
+      }
+
+      function sendChatMessage() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const messagesDiv = document.getElementById('chat-messages');
+        messagesDiv.innerHTML += `<div class="message user">${text}</div>`;
+        input.value = '';
+
+        let reply = "Desculpe, não entendi a solicitação. Tente perguntar sobre 'faturamento', 'dívidas' ou 'eventos'.";
+        const lower = text.toLowerCase();
+
+        if (lower.includes('faturamento') || lower.includes('faturamos')) {
+          reply = `O faturamento registado este mês é de <strong>R$ ${state.faturamentoMes.toFixed(2)}</strong>.`;
+        } else if (lower.includes('dívida') || lower.includes('inadimplente') || lower.includes('devendo')) {
+          reply = "Existe 1 cliente com valor pendente: <strong>Mariana Silva</strong> (R$ 350,00 - Contrato #1808).";
+        } else if (lower.includes('evento') || lower.includes('sábado') || lower.includes('reservas')) {
+          reply = "Para o próximo evento (15/10/2026 - Fabiana de Paula), estão reservadas: 1x Mesa Rústica e 1x Kit Louças Rosa.";
+        }
+
+        setTimeout(() => {
+          messagesDiv.innerHTML += `<div class="message ai">${reply}</div>`;
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }, 400);
+      }
+
+      function handleChatKey(e) {
+        if (e.key === 'Enter') sendChatMessage();
+      }
+
+      function registerDebtPayment(cliente, valor) {
+        alert(`Pagamento de R$ ${valor},00 registado com sucesso para ${cliente}!`);
+      }
+
+      function generateActivationKey() {
+        const plan = document.getElementById('key-plan-select').value;
+        const days = document.getElementById('key-days-input').value;
+        const randomCode = 'PARTY-' + plan + '-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+        
+        document.getElementById('generated-key-output').textContent = `Chave Gerada: ${randomCode} (${days} dias)`;
+      }
+
+      function updateThemeColors() {
+        const primary = document.getElementById('primaryColorPicker').value;
+        const sidebar = document.getElementById('sidebarColorPicker').value;
+
+        document.getElementById('primaryHex').textContent = primary;
+        document.getElementById('sidebarHex').textContent = sidebar;
+
+        document.documentElement.style.setProperty('--primary-color', primary);
+        document.documentElement.style.setProperty('--sidebar-bg', sidebar);
+      }
+    </script>
+</body>
+</html>
